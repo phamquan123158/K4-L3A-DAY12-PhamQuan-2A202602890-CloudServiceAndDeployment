@@ -10,17 +10,17 @@
 
 | Mục | Nội dung |
 |-----|----------|
-| Họ và tên | (điền họ tên) |
-| Mã học viên | (điền mã học viên) |
-| Repo | (điền link repo K4-L3A-DAY12-HoVaTen-MSSV-CloudServicesAndDeployment) |
+| Họ và tên | Phạm Quân |
+| Mã học viên | 2A202602890 |
+| Repo | https://github.com/phamquan123158/K4-L3A-DAY12-PhamQuan-2A202602890-CloudServiceAndDeployment |
 
 ## Service
 
 | Mục | Nội dung |
 |-----|----------|
-| Public URL | https://TODO-thay-bang-url-that.up.railway.app |
-| Platform | Railway / Render / Cloud Run — (điền platform bạn dùng) |
-| Ngày deploy | (điền ngày) |
+| Public URL | https://day12-agent-production-8bc1.up.railway.app |
+| Platform | Railway |
+| Ngày deploy | Chưa xác minh; endpoint được kiểm tra ngày 2026-09-28 |
 
 ## Biến Môi Trường Đã Set Trên Cloud
 
@@ -28,74 +28,53 @@ Ghi tên biến và **nguồn giá trị**, không ghi giá trị:
 
 | Biến | Đã set | Ghi chú |
 |------|--------|---------|
-| `PORT` | ✅ | platform tự gán |
-| `AGENT_API_KEY` | ✅ | đặt trong dashboard, không nằm trong repo |
-| `REDIS_URL` | ✅ | (điền: Redis add-on của platform / Upstash / ...) |
-| `RATE_LIMIT_PER_MINUTE` | ✅ | 10 |
-| `MONTHLY_BUDGET_USD` | ✅ | 10.0 |
-| `LOG_LEVEL` | ✅ | INFO |
+| `PORT` | ✅ | Railway cấp tự động |
+| `AGENT_API_KEY` | ✅ | Giá trị lưu trong Railway Variables, không ghi ở đây |
+| `REDIS_URL` | ✅ | Railway reference: `${{redis.REDIS_URL}}`; `/ready` cần xác nhận sau redeploy |
+| `RATE_LIMIT_PER_MINUTE` | ⚠️ | Chưa xác minh trong Railway Variables; mặc định ứng dụng là 10 |
+| `MONTHLY_BUDGET_USD` | ⚠️ | Chưa xác minh trong Railway Variables; mặc định ứng dụng là 10.0 |
+| `LOG_LEVEL` | ⚠️ | Chưa xác minh trong Railway Variables; mặc định ứng dụng là INFO |
 
 ## Lệnh Kiểm Tra
 
-Thay `<URL>` bằng Public URL ở trên:
+Các lệnh dưới đây dùng Public URL đã deploy:
 
 ```bash
 # 1. Liveness — mong đợi 200 {"status":"ok"}
-curl -i <URL>/health
+curl -i https://day12-agent-production-8bc1.up.railway.app/health
 
 # 2. Readiness — mong đợi 200 {"status":"ready"} (đã nối được Redis)
-curl -i <URL>/ready
+curl -i https://day12-agent-production-8bc1.up.railway.app/ready
 
 # 3. Không có API key — mong đợi 401
-curl -i -X POST <URL>/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Hello"}'
+curl -i -X POST https://day12-agent-production-8bc1.up.railway.app/ask -H "Content-Type: application/json" -d '{"question":"Hello"}'
 
-# 4. Có API key — mong đợi 200 kèm câu trả lời
-curl -i -X POST <URL>/ask \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $AGENT_API_KEY" \
-  -H "X-User-Id: sv-test" \
-  -d '{"question":"Deploy là gì?"}'
+# 4. Có API key — mong đợi 200 kèm câu trả lời. Đặt AGENT_API_KEY trong shell an toàn.
+curl -i -X POST https://day12-agent-production-8bc1.up.railway.app/ask -H "Content-Type: application/json" -H "X-API-Key: $AGENT_API_KEY" -H "X-User-Id: sv-test" -d '{"question":"Deploy là gì?"}'
 
 # 5. Rate limit — gọi 15 lần, những lần cuối phải trả 429
 for i in $(seq 1 15); do
-  curl -s -o /dev/null -w "%{http_code} " -X POST <URL>/ask \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: $AGENT_API_KEY" \
-    -H "X-User-Id: sv-test" \
-    -d '{"question":"test"}'
+  curl -s -o /dev/null -w "%{http_code} " -X POST https://day12-agent-production-8bc1.up.railway.app/ask -H "Content-Type: application/json" -H "X-API-Key: $AGENT_API_KEY" -H "X-User-Id: sv-test" -d '{"question":"test"}'
 done; echo
 ```
 
 ## Kết Quả Chạy Thật
 
-Dán output của các lệnh trên vào đây:
+Đã xác minh ngày 2026-09-28, không gửi API key:
 
-```
-(điền output)
+```text
+/health: HTTP 200 {"status":"ok","service":"day12-agent","version":"1.0.0"}
+/ready: HTTP 500 (Redis readiness chưa đạt; cần kiểm tra logs và REDIS_URL trên Railway)
+/ask không có API key: HTTP 401
+/ask có API key và rate limit: chưa kiểm tra; DEPLOY_API_KEY chưa được cấu hình cục bộ.
+CP5 public: 7 passed, 1 failed (/ready), 5 skipped (authenticated ask chưa có DEPLOY_API_KEY; local fallback không dùng).
 ```
 
 ## Ảnh Chụp Màn Hình
 
 Đặt ảnh trong thư mục `screenshots/`:
 
-- `screenshots/dashboard.png` — trang quản lý service trên platform
-- `screenshots/health.png` — kết quả gọi `/health` từ trình duyệt hoặc curl
+- `screenshots/dashboard.png` — cần chụp từ Railway Dashboard
+- `screenshots/health.png` — cần chụp kết quả gọi `/health`
 
 ---
-
-## Nếu Dùng Phương Án Dự Phòng
-
-Không đăng ký được tài khoản cloud? Vẫn nộp được bài, nhưng CP5 tối đa 60% điểm:
-
-1. Đặt `LOCAL_FALLBACK=true` trong `.env`
-2. Chạy `docker compose up -d` rồi kiểm tra `docker compose ps`
-3. Chụp màn hình vào `screenshots/`
-4. Chạy `pytest tests/test_cp5.py -v` — bộ test sẽ tự chuyển sang kiểm tra
-   `http://localhost:8000`
-5. Ghi rõ lý do không deploy được vào phần dưới đây:
-
-```
-(điền lý do nếu dùng phương án dự phòng, ngược lại xóa mục này)
-```
